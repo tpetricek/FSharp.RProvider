@@ -6,8 +6,8 @@ open RProvider
 open RProvider.RInterop
 open RProvider.``base``
 open System
-open Xunit
 open FsCheck
+open NUnit.Framework
 open System.Numerics
 open System.Text
 
@@ -15,9 +15,9 @@ open System.Text
 // when SEXP is asked for the value by-type
 let testRoundTrip (x: 'a) (typeof: SymbolicExpressionType) (clsName: Option<string>) =
     let sexp = toR(x)
-    Assert.Equal<'a>(x, sexp.GetValue<'a>())
-    Assert.Equal(sexp.Type, typeof)
-    Assert.Equal<string[]>(sexp.Class, Option.toArray clsName)
+    Assert.AreEqual(x, sexp.GetValue<'a>())
+    Assert.AreEqual(sexp.Type, typeof)
+    Assert.AreEqual(sexp.Class, Option.toArray clsName)
 
 // Generic function to test that a value round-trips
 // when SEXP is asked for the value by-type, and
@@ -25,7 +25,7 @@ let testRoundTrip (x: 'a) (typeof: SymbolicExpressionType) (clsName: Option<stri
 let testRoundTripAndDefault (x: 'a) (typeof: SymbolicExpressionType) (clsName: Option<string>) =
     testRoundTrip x typeof clsName
     let sexp = toR(x)
-    Assert.Equal<'a>(x, unbox<'a> sexp.Value)    
+    Assert.AreEqual(x, unbox<'a> sexp.Value)    
 
 let testVector (xs: 'scalarType[]) (typeof: SymbolicExpressionType) (clsName: Option<string>) =    
     // Test arrays and lists round-trip
@@ -43,80 +43,96 @@ let testScalar (x: 'scalarType) (typeof: SymbolicExpressionType) (clsName: Optio
 
     // Scalars round-trip as vectors
     let sexp = toR(x)
-    Assert.Equal<'scalarType[]>([|x|], unbox(sexp.Value))
-    Assert.Equal<'scalarType[]>([|x|], sexp.GetValue<'scalarType[]>())
+    Assert.AreEqual([|x|], unbox<'scalarType[]>(sexp.Value))
+    Assert.AreEqual([|x|], sexp.GetValue<'scalarType[]>())
 
-[<Property>]
-let ``Date vector round-trip tests`` (xs: DateTime[]) = 
-    testVector xs SymbolicExpressionType.NumericVector (Some "Date")
-[<Property>]
-let ``Date scalar round-trip tests`` (x: DateTime) = 
-    testScalar x SymbolicExpressionType.NumericVector (Some "Date")
+[<Test>]
+let ``Date vector round-trip tests``() = 
+  Check.QuickThrowOnFailure(fun (xs: DateTime[]) ->
+    testVector xs SymbolicExpressionType.NumericVector (Some "Date"))
 
-[<Property>]
-let ``Int vector round-trip tests`` (xs: int[]) = 
-    testVector xs SymbolicExpressionType.IntegerVector None
-[<Property>]
-let ``Int scalar round-trip tests`` (x: int) = 
-    testScalar x SymbolicExpressionType.IntegerVector None
+[<Test>]
+let ``Date scalar round-trip tests`` () = 
+  Check.QuickThrowOnFailure(fun (x: DateTime) ->
+    testScalar x SymbolicExpressionType.NumericVector (Some "Date"))
 
-[<Property>]
-let ``Double vector round-trip tests`` (xs: double[]) = 
-    testVector xs SymbolicExpressionType.NumericVector None
-[<Property>]
-let ``Double scalar round-trip tests`` (x: double) = 
-    testScalar x SymbolicExpressionType.NumericVector None
+[<Test>]
+let ``Int vector round-trip tests`` () =
+  Check.QuickThrowOnFailure(fun (xs: int[]) ->
+    testVector xs SymbolicExpressionType.IntegerVector None)
 
-[<Property>]
-let ``Bool vector round-trip tests`` (xs: bool[]) = 
-    testVector xs SymbolicExpressionType.LogicalVector None
-[<Property>]
-let ``Bool scalar round-trip tests`` (x: bool) = 
-    testScalar x SymbolicExpressionType.LogicalVector None
+[<Test>]
+let ``Int scalar round-trip tests`` () =
+  Check.QuickThrowOnFailure(fun (x: int) ->
+    testScalar x SymbolicExpressionType.IntegerVector None)
 
-[<Property>]
-let ``Complex vector round-trip tests`` (ris: (double*double)[]) =
+[<Test>]
+let ``Double vector round-trip tests`` () =
+  Check.QuickThrowOnFailure(fun (xs: double[]) ->
+    testVector xs SymbolicExpressionType.NumericVector None)
+
+[<Test>]
+let ``Double scalar round-trip tests`` () =
+  Check.QuickThrowOnFailure(fun (x: double) ->
+    testScalar x SymbolicExpressionType.NumericVector None)
+
+[<Test>]
+let ``Bool vector round-trip tests`` () =
+  Check.QuickThrowOnFailure(fun (xs: bool[]) ->
+    testVector xs SymbolicExpressionType.LogicalVector None)
+
+[<Test>]
+let ``Bool scalar round-trip tests`` () = 
+  Check.QuickThrowOnFailure(fun (x: bool) ->
+    testScalar x SymbolicExpressionType.LogicalVector None)
+
+[<Test>]
+let ``Complex vector round-trip tests`` () =
+  Check.QuickThrowOnFailure(fun (ris: (double*double)[]) ->
     let xs = [| for (r,i) in ris do
                     if not(Double.IsNaN(r) || Double.IsNaN(i)) then
                         yield Complex(r, i) |] 
-    testVector xs SymbolicExpressionType.ComplexVector None
+    testVector xs SymbolicExpressionType.ComplexVector None)
 
-[<Property>]
-let ``Complex scalar round-trip tests`` (r: double) (i: double) =
+[<Test>]
+let ``Complex scalar round-trip tests`` () =
+  Check.QuickThrowOnFailure(fun (r: double) (i: double) ->
     if not(Double.IsNaN(r) || Double.IsNaN(i)) then
         let x = Complex(r, i) 
-        testScalar x SymbolicExpressionType.ComplexVector None
+        testScalar x SymbolicExpressionType.ComplexVector None)
 
-//[<Property>]
+//[<Test>]
 // Has various issues - embedded nulls, etc.
-let ``String arrays round-trip``(strings: string[]) =
+let ``String arrays round-trip``() =
+  Check.QuickThrowOnFailure(fun (strings: string[]) ->
     // We only want to test for ASCII strings
     if Array.forall (fun s -> s = Encoding.ASCII.GetString(Encoding.ASCII.GetBytes(s))) strings then
         let sexp = toR(strings)
 
-        Assert.Equal<string[]>(strings, unbox sexp.Value)
-        Assert.Equal<string[]>(strings, sexp.GetValue<string[]>())
+        Assert.AreEqual(strings, unbox<string[]> sexp.Value)
+        Assert.AreEqual(strings, sexp.GetValue<string[]>()) )
 
-//[<Property>]
+//[<Test>]
 // Has various issues - embedded nulls, etc.
-let ``Strings round-trip``(value: string) =
+let ``Strings round-trip``() =
+  Check.QuickThrowOnFailure(fun (value: string) ->
     // We only want to test for ASCII strings
     //if Array.forall (fun s -> s = Encoding.ASCII.GetString(Encoding.ASCII.GetBytes(s))) strings then
         let sexp = toR(value)    
-        Assert.Equal<string>(value, sexp.GetValue<string>())
+        Assert.AreEqual(value, sexp.GetValue<string>()))
 
 let roundTripAsFactor (value:string[]) = 
     let sexp = R.as_factor(value)
-    Assert.Equal<string[]>(value, sexp.GetValue<string[]>())
+    Assert.AreEqual(value, sexp.GetValue<string[]>())
 
 let roundTripAsDataframe (value: string[]) = 
     let df = R.data_frame(namedParams [ "Column", value ]).AsDataFrame()    
-    Assert.Equal<string[]>(value, df.[0].GetValue<string[]>())
+    Assert.AreEqual(value, df.[0].GetValue<string[]>())
 
-[<Fact>]
+[<Test>]
 let ``String arrays round-trip via factors`` () = 
     roundTripAsFactor [| "foo"; "bar"; "foo"; "bar" |]
 
-[<Fact>]
+[<Test>]
 let ``String arrays round-trip via DataFrame`` () = 
     roundTripAsDataframe [| "foo"; "bar"; "foo"; "bar" |]
