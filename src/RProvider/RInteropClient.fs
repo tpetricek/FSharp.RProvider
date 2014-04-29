@@ -61,6 +61,17 @@ module internal RInteropClient =
         let server = GetServer()
         f server
 
+    let mutable localServerInstance = None
+    let withLocalServer f =
+        lock serverlock <| fun () ->
+        let server = match localServerInstance with
+                        | Some s -> s
+                        | _ ->
+                            let s = new RInteropServer()
+                            localServerInstance <- Some s
+                            s
+        f server
+
     AppDomain.CurrentDomain.add_AssemblyResolve(ResolveEventHandler(fun _ args ->
         let name = System.Reflection.AssemblyName(args.Name)
         let existingAssembly =

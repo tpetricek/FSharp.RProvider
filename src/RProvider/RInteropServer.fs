@@ -3,6 +3,7 @@
 open Microsoft.FSharp.Core.CompilerServices
 open Microsoft.Win32
 open RDotNet
+open RProvider
 open RProvider.RInterop
 open RProvider.Internal
 open System
@@ -21,6 +22,8 @@ type RInteropServer() =
     let withLock f =
         lock serverLock f
 
+    let mutable remoteSessions = Map.empty
+
     member x.RInitValue
         with get() =
             withLock <| fun () ->
@@ -28,22 +31,48 @@ type RInteropServer() =
             | RInit.RInitError error -> Some error
             | _ -> None
 
+    member private x.GetRemoteSession(config:SessionConfig) =
+        let sessionKey = (config.hostName, config.port, config.blocking)
+        if not (remoteSessions.ContainsKey sessionKey) then 
+            remoteSessions <- remoteSessions.Add(sessionKey, RemoteSession.GetConnection(config))
+        remoteSessions.[sessionKey]
+
     member x.GetPackages() =
          withLock <| fun () ->
             getPackages()
 
+    member x.GetPackages(remoteSession) =
+        withLock <| fun () ->
+            x.GetRemoteSession(remoteSession).getPackages()
+         
     member x.LoadPackage(package) =
         withLock <| fun () ->
             loadPackage package
+
+    member x.LoadPackage(package, remoteSession) =
+        withLock <| fun () ->
+            x.GetRemoteSession(remoteSession).loadPackage package
         
+    member x.GetBindings(package, remoteSession) =
+        withLock <| fun () ->
+            x.GetRemoteSession(remoteSession).getBindings package
+
     member x.GetBindings(package) =
         withLock <| fun () ->
             getBindings package
         
+    member x.GetFunctionDescriptions(package:string, remoteSession) =
+        withLock <| fun () ->
+            x.GetRemoteSession(remoteSession).getFunctionDescriptions package
+    
     member x.GetFunctionDescriptions(package:string) =
         withLock <| fun () ->
             getFunctionDescriptions package
         
+    member x.GetPackageDescription(package, remoteSession) =
+        withLock <| fun () ->
+            x.GetRemoteSession(remoteSession).getPackageDescription package
+    
     member x.GetPackageDescription(package) =
         withLock <| fun () ->
             getPackageDescription package

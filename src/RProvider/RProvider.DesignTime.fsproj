@@ -55,6 +55,7 @@
     <Compile Include="AssemblyInfo.DesignTime.fs" />
     <Compile Include="RInteropClient.fs" />
     <Compile Include="RTypeBuilder.fs" />
+    <Compile Include="RemoteRTypeBuilder.fs" />
     <Compile Include="DesignTime.fs" />
     <None Include="packages.config" />
   </ItemGroup>
