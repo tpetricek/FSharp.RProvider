@@ -1,5 +1,25 @@
 ﻿#r @"../../bin/RDotNet.dll"
 #r @"../../bin/RProvider.dll"
+#r @"../../bin/RProvider.Runtime.exe"
+
+open RProvider
+
+// type RR = RemoteR<""
+type RRSession = RemoteR<"localhost", 8888, false>
+let r = RRSession()
+
+
+//R.configureRemote("...", ...)
+
+
+r.assign("test", [1;2;3;5;6;7;7])
+
+let a = r.``base``
+
+a.log([1;2;3])
+
+
+// ----------------------------------------------------------------------------
  
 open RDotNet
 open RProvider
@@ -45,4 +65,5 @@ let tickers = [ "MSFT"; "AAPL"; "X"; "VXX"; "SPX"; "GLD" ]
 let data = [ for t in tickers -> t, getStockPrices t 255 |> R.log |> R.diff ]
 let df = R.data_frame(namedParams data)
 R.pairs(df)
+
 
