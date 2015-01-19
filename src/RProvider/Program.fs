@@ -56,7 +56,7 @@ let main argv =
     // RProvider.dll.config which has this pattern in custom key "ProbingLocations".
     // Here, we resolve assemblies by looking into the specified search paths.
     AppDomain.CurrentDomain.add_AssemblyResolve(fun source args ->
-      resolveReferencedAssembly args.Name)
+      resolveReferencedAssembly "RProvider.Server" args.Name)
 
     // The first argument is the IPC channel to create; The second argument
     // is a temp file that we delete, once we setup the IPC channel to 

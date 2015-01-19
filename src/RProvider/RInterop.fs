@@ -105,7 +105,7 @@ module internal RInteropInternal =
             /// original location, not the shadow-copied location.
             let assemblyLocation = assem |> getAssemblyLocation
 
-            let dirs = getProbingLocations()
+            let dirs = getProbingLocations "RProvider.Runtime"
             let catalogs : seq<Primitives.ComposablePartCatalog> = 
               seq { yield upcast new DirectoryCatalog(Path.GetDirectoryName assemblyLocation,"*.Plugin.dll")
                     for d in dirs do

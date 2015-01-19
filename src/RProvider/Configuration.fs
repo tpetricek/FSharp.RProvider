@@ -9,9 +9,9 @@ open System.Collections.Generic
 
 /// Returns the Assembly object of RProvider.Runtime.dll (this needs to
 /// work when called from RProvider.DesignTime.dll and also RProvider.Server.exe)
-let getRProviderRuntimeAssembly() =
+let getRProviderConfigAssembly configAssembly =
   AppDomain.CurrentDomain.GetAssemblies()
-  |> Seq.find (fun a -> a.FullName.StartsWith("RProvider.Runtime,"))
+  |> Seq.find (fun a -> a.FullName.StartsWith(configAssembly + ","))
 
 /// Finds directories relative to 'dirs' using the specified 'patterns'.
 /// Patterns is a string, such as "..\foo\*\bar" split by '\'. Standard
@@ -36,9 +36,9 @@ let getAssemblyLocation (assem:Assembly) =
 /// Reads the 'RProvider.dll.config' file and gets the 'ProbingLocations' 
 /// parameter from the configuration file. Resolves the directories and returns
 /// them as a list.
-let getProbingLocations() = 
+let getProbingLocations configAssembly = 
   try
-    let root = getRProviderRuntimeAssembly() |> getAssemblyLocation
+    let root = getRProviderConfigAssembly configAssembly |> getAssemblyLocation
     let config = System.Configuration.ConfigurationManager.OpenExeConfiguration(root)
     let pattern = config.AppSettings.Settings.["ProbingLocations"]
     if pattern <> null then
@@ -54,9 +54,9 @@ let getProbingLocations() =
 /// Given an assembly name, try to find it in either assemblies
 /// loaded in the current AppDomain, or in one of the specified 
 /// probing directories.
-let resolveReferencedAssembly (asmName:string) = 
-  
+let resolveReferencedAssembly configAssembly (asmName:string) = 
   // Do not interfere with loading FSharp.Core resources, see #97
+  Logging.logf "Resolve assembly: %s" asmName
   if asmName.StartsWith "FSharp.Core.resources" then null else
 
   // First, try to find the assembly in the currently loaded assemblies
@@ -65,7 +65,7 @@ let resolveReferencedAssembly (asmName:string) =
     System.AppDomain.CurrentDomain.GetAssemblies()
     |> Seq.tryFind (fun a -> AssemblyName.ReferenceMatchesDefinition(fullName, a.GetName()))
   match loadedAsm with
-  | Some asm -> asm
+  | Some asm -> Logging.logf "Found in loaded!"; asm
   | None ->
 
     // Otherwise, search the probing locations for a DLL file
@@ -73,15 +73,22 @@ let resolveReferencedAssembly (asmName:string) =
       let idx = asmName.IndexOf(',') 
       if idx > 0 then asmName.Substring(0, idx) else asmName
 
-    let asm =
-      getProbingLocations()
-      |> Seq.tryPick (fun dir ->
-          let library = Path.Combine(dir, libraryName+".dll")
-          if File.Exists(library) then
+    let locations = getProbingLocations configAssembly
+    Logging.logf "Probing locations: %A" locations
+    let asm = locations |> Seq.tryPick (fun dir ->
+        let library = Path.Combine(dir, libraryName+".dll")
+        if File.Exists(library) then
+            Logging.logf "Found assembly, checking version! (%s)" library
             // We do a ReflectionOnlyLoad so that we can check the version
             let refAssem = Assembly.ReflectionOnlyLoadFrom(library)
             // If it matches, we load the actual assembly
-            if refAssem.FullName = asmName then Some(Assembly.LoadFrom(library)) else None
-          else None)
+            if refAssem.FullName = asmName then 
+              Logging.logf "...version matches, returning!"
+              Some(Assembly.LoadFrom(library)) 
+            else 
+              Logging.logf "...version mismatch, skipping"
+              None
+        else None)
              
+    Logging.logf "Assembly not found!"
     defaultArg asm null

@@ -25,7 +25,7 @@ type public RProvider(cfg:TypeProviderConfig) as this =
       // RProvider.dll.config which has this pattern in custom key "ProbingLocations".
       // Here, we resolve assemblies by looking into the specified search paths.
       AppDomain.CurrentDomain.add_AssemblyResolve(fun source args ->
-        resolveReferencedAssembly args.Name)
+        resolveReferencedAssembly "RProvider.Runtime" args.Name)
       
     // Generate all the types and log potential errors
     let buildTypes () =

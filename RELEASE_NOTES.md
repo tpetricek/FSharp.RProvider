@@ -20,3 +20,4 @@
 * 1.1.4-alpha - Fix load script in the NuGet package
 * 1.1.5-alpha - Downgrade R.NET version and update load script
 * 1.1.6 - Mono support & use and support Paket + minor improvements
+* 1.1.7-alpha - Experimental: Using ILRepack to avoid FSharp.Core dependency
